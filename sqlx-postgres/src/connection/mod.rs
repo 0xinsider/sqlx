@@ -146,6 +146,25 @@ impl PgConnection {
             TransactionStatus::Error | TransactionStatus::Idle => false,
         }
     }
+
+    /// The transaction status the server reported in the most recent
+    /// [`ReadyForQuery`][crate::message::ReadyForQuery] message.
+    ///
+    /// This is the *server's* view of the session, which is not always the
+    /// client's: [`Connection::is_in_transaction`] reports the client-side
+    /// transaction depth, and that depth can be zero while the server is
+    /// inside a block. A future cancelled while `BEGIN` is in flight, or a
+    /// statement that fails inside a block opened by a multi-statement
+    /// `raw_sql` query, both leave the session in
+    /// [`TransactionStatus::Transaction`] or [`TransactionStatus::Error`]
+    /// with a depth of zero.
+    ///
+    /// Reading this costs no round trip: the status byte rides along on every
+    /// `ReadyForQuery`, so it is already in memory. It is current only once
+    /// every `ReadyForQuery` the connection is owed has been read.
+    pub fn transaction_status(&self) -> TransactionStatus {
+        self.inner.transaction_status
+    }
 }
 
 impl Debug for PgConnection {
